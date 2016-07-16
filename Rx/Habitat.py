@@ -1,8 +1,10 @@
-import requests, hashlib, base64, sys
+import requests, hashlib, base64, sys, threading
 from time import strftime
 from SX127x.LoRa import *
 from SX127x.board_config import BOARD
 from time import sleep
+
+toSend = {"telemetry" : "", "ssdv" : []}
 
 class LoRaReceive(LoRa):
     def __init__(self, verbose=False):
@@ -28,21 +30,37 @@ class LoRaReceive(LoRa):
         while True:
             sleep(1)
 
-def uploadTelemetry(telemetry):
-    b64 = (base64.b64encode(telemetry.encode()))
-    sha256 = hashlib.sha256(b64).hexdigest()
-    b64 = b64.decode()
-    now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
-    json = "{\"data\": {\"_raw\": \"%s\"},\"receivers\": {\"%s\": {\"time_created\": \"%s\",\"time_uploaded\": \"%s\"}}}" % (b64, "SAMPI", now, now)
-    #print(json)
-    #print(sha256)
-    headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
-    try:
-        r = requests.put("http://habitat.habhub.org/habitat/_design/payload_telemetry/_update/add_listener/"+sha256, headers=headers, data=json)
-    except:
-        sys.stdout.write("\rError while uploading. Internet OK?")
-    #print(r.status_code)
-    #print(r.content)
+class SpecialThread(threading.Thread):
+
+    end = False
+
+    def __init__(self, target=None):
+        super(SpecialThread, self).__init__(target=target)
+    def stop(self):
+        self.end = True
+
+def uploadTelemetry():
+    global toSend
+    while not threading.current_thread().end:
+        telemetry = toSend["telemetry"]
+        if not telemetry == "":
+            b64 = (base64.b64encode(telemetry.encode()))
+            sha256 = hashlib.sha256(b64).hexdigest()
+            b64 = b64.decode()
+            now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
+            json = "{\"data\": {\"_raw\": \"%s\"},\"receivers\": {\"%s\": {\"time_created\": \"%s\",\"time_uploaded\": \"%s\"}}}" % (b64, "SAMPI", now, now)
+            #print(json)
+            #print(sha256)
+            headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
+            try:
+                r = requests.put("http://habitat.habhub.org/habitat/_design/payload_telemetry/_update/add_listener/"+sha256, headers=headers, data=json)
+            except:
+                sys.stdout.write("\rError while uploading. Internet OK?")
+            #print(r.status_code)
+            #print(r.content)
+            if telemetry == toSend["telemetry"]:
+                toSend["telemetry"] = ""
+        sleep(1)
 
 def addToImagePacket(part):
     global currentPacket
@@ -51,20 +69,26 @@ def addToImagePacket(part):
     else:
         currentPacket += part
     if len(currentPacket) >= 256:
-        uploadSSDVPacket(currentPacket)
+        #uploadSSDVPacket(currentPacket)
+        toSend["ssdv"].append(currentPacket)
         currentPacket = ""
 
-def uploadSSDVPacket(packet):
-    b64 = base64.b64encode(bytes(packet)).decode('utf-8')
-    headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
-    now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
-    upload = "{\"type\": \"packet\", \"packet\": \"%s\", \"encoding\": \"base64\", \"received\": \"%s\", \"receiver\": \"%s\"}" % (b64, now, "SAMPI")
-    try:
-        r = requests.post("http://ssdv.habhub.org/api/v0/packets", headers=headers, data=upload)
-    except:
-        sys.stdout.write("\rError while uploading. Internet OK?")
-    #print(r.content)
-    print(r.status_code)
+def uploadSSDVPackets():
+    global toSend
+    while not threading.current_thread().end:
+        for packet in toSend["ssdv"]:
+            b64 = base64.b64encode(bytes(packet)).decode('utf-8')
+            headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
+            now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
+            upload = "{\"type\": \"packet\", \"packet\": \"%s\", \"encoding\": \"base64\", \"received\": \"%s\", \"receiver\": \"%s\"}" % (b64, now, "SAMPI")
+            try:
+                r = requests.post("http://ssdv.habhub.org/api/v0/packets", headers=headers, data=upload)
+            except:
+                sys.stdout.write("\rError while uploading. Internet OK?")
+            #print(r.content)
+            #print(r.status_code)
+            sleep(0.1)
+        sleep(1)
 
 currentPacket = ""      
 
@@ -76,11 +100,18 @@ lora.set_freq(868.000000)
 lora.set_pa_config(pa_select=1)
 lora.set_bw(8)
 
+TeleThread = SpecialThread(target=uploadTelemetry)
+SSDVThread = SpecialThread(target=uploadSSDVPackets)
+TeleThread.start()
+SSDVThread.start()
+
 print("Latest transmission:")
 
 try:
     lora.start()
 finally:
+    SSDVThread.stop()
+    TeleThread.stop()
     lora.set_mode(MODE.SLEEP)
     BOARD.teardown()
 

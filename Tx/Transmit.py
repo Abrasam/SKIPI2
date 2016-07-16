@@ -51,13 +51,13 @@ def txMulti(msg):
     lora.set_coding_rate(CODING_RATE.CR4_5)
     try:
         while len(msg) > 0:
-            part = msg[:64]
-            msg = msg[64:]
+            part = msg[:128]
+            msg = msg[128:]
             lora.send(part)
             try:
                 with timeout(seconds=2):
                     while lora.transmitting:
-                        sleep(0.25)
+                        sleep(0.1)
             except TimeoutError:
                 print("Sending timed out.")
     finally:
