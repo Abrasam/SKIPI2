@@ -1,4 +1,5 @@
 from time import sleep
+from timeout import *
 from SX127x.LoRa import *
 from SX127x.board_config import BOARD
 
@@ -14,6 +15,7 @@ class LoRaTransmit(LoRa):
     def on_tx_done(self):
         self.set_mode(MODE.SLEEP)
         self.transmitting = False
+        self.set_mode(MODE.STDBY)
 
     def send(self, message):
         if not self.transmitting:
@@ -40,3 +42,24 @@ def tx(msg):
         lora.set_mode(MODE.SLEEP)
         BOARD.teardown()
 
+def txMulti(msg):
+    BOARD.setup()
+    lora = LoRaTransmit()
+    lora.set_freq(868.000000)
+    lora.set_pa_config(pa_select=1, max_power=5)
+    lora.set_bw(8)
+    lora.set_coding_rate(CODING_RATE.CR4_5)
+    try:
+        while len(msg) > 0:
+            part = msg[:64]
+            msg = msg[64:]
+            lora.send(part)
+            try:
+                with timeout(seconds=2):
+                    while lora.transmitting:
+                        sleep(0.25)
+            except TimeoutError:
+                print("Sending timed out.")
+    finally:
+        lora.set_mode(MODE.SLEEP)
+        BOARD.teardown()

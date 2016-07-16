@@ -1,5 +1,9 @@
-from Transmit import tx
+from Transmit import txMulti
 from time import sleep
 file = open("/home/pi/test.bin", "rb")
 data = file.read(256)
-tx(list(bytearray(data)))
+add = data
+while add != "":
+    add = file.read(256)
+    data += add
+txMulti(list(bytearray(data)))
