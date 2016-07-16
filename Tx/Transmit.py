@@ -12,6 +12,7 @@ class LoRaTransmit(LoRa):
         self.set_dio_mapping([1,0,0,0,0,0])
         
     def on_tx_done(self):
+        self.set_mode(MODE.SLEEP)
         self.transmitting = False
 
     def send(self, message):
@@ -28,14 +29,14 @@ class LoRaTransmit(LoRa):
 
 def tx(msg):
     BOARD.setup()
-    
     lora = LoRaTransmit()
+    lora.set_freq(868.000000)
     lora.set_pa_config(pa_select=1, max_power=5)
     lora.set_bw(8)
     lora.set_coding_rate(CODING_RATE.CR4_5)
-
     try:
-        lora.start(msg)
+        lora.send(msg)
     finally:
+        lora.set_mode(MODE.SLEEP)
         BOARD.teardown()
-#tx(list(bytearray("Oh, I do like to be beside the seaside.")))
+

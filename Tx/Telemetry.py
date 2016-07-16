@@ -1,6 +1,9 @@
 from Transmit import tx
 from time import sleep
+from timeout import *
 import serial, threading, datetime, crcmod, subprocess
+from SX127x.LoRa import *
+from SX127x.board_config import BOARD
 
 checksum = crcmod.predefined.mkCrcFun('crc-ccitt-false')
 
@@ -16,14 +19,19 @@ def makeTelemetry(gpsData):
         time = data[1][0:2] + ":" + data[1][2:4] + ":" + data[1][4:6]
         telemetry = "$$REGGIE," + str(id) + "," + time + "," + lat + "," + long + "," + alt + "," + sats
         csum = (hex(checksum(telemetry[2:],0xFFFF))).upper()
-       # print(csum)
         telemetry += "*" + csum[2:] + "\n"
         return telemetry
     return ""
+
+
 
 with open("gps.txt", 'r') as file:
     data = file.readline()
     telemetry = makeTelemetry(data)
     if not telemetry == "":
         print(telemetry)
-        tx(list(bytearray(telemetry)))
+        try:
+            with timeout(seconds=90):
+                tx(list(bytearray(telemetry)))
+        except TimeoutError:
+            print("Transmission timed out.")
