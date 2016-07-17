@@ -20,6 +20,7 @@ class LoRaTransmit(LoRa):
     def send(self, message):
         if not self.transmitting:
             self.set_mode(MODE.STDBY)
+            sleep(0.1)
             self.set_payload_length(len(message))
             self.write_payload(message)
             self.transmitting = True
@@ -38,6 +39,27 @@ def tx(msg):
     lora.set_coding_rate(CODING_RATE.CR4_5)
     try:
         lora.send(msg)
+    finally:
+        lora.set_mode(MODE.SLEEP)
+        BOARD.teardown()
+
+def txRepeat(msg, num):
+    BOARD.setup()
+    lora = LoRaTransmit()
+    lora.set_freq(868.000000)
+    lora.set_pa_config(pa_select=1, max_power=5)
+    lora.set_bw(8)
+    lora.set_coding_rate(CODING_RATE.CR4_5)
+    try:
+        for i in range(0, num):
+            lora.send(msg)
+            try:
+                with timeout(seconds=2):
+                    while lora.transmitting:
+                        sleep(0.1)
+            except TimeoutError:
+                print("Sending timed out.")
+                sleep(1)
     finally:
         lora.set_mode(MODE.SLEEP)
         BOARD.teardown()

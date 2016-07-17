@@ -1,4 +1,4 @@
-from Transmit import tx
+from Transmit import txRepeat
 from time import sleep
 from timeout import *
 import serial, threading, datetime, crcmod, subprocess
@@ -24,14 +24,16 @@ def makeTelemetry(gpsData):
     return ""
 
 
+def sendTelemetry():
+    with open("gps.txt", 'r') as file:
+        data = file.readline()
+        telemetry = makeTelemetry(data)
+        if not telemetry == "":
+            print(telemetry)
+            try:
+                with timeout(seconds=90):
+                    txRepeat(list(bytearray(telemetry)), 5)
+            except TimeoutError:
+                print("Transmission timed out.")
 
-with open("gps.txt", 'r') as file:
-    data = file.readline()
-    telemetry = makeTelemetry(data)
-    if not telemetry == "":
-        print(telemetry)
-        try:
-            with timeout(seconds=90):
-                tx(list(bytearray(telemetry)))
-        except TimeoutError:
-            print("Transmission timed out.")
+sendTelemetry()
