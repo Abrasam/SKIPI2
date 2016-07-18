@@ -37,25 +37,27 @@ class LoRaReceive(LoRa):
 def uploadTelemetry():
     global toSend
     while True:
-        telemetry = toSend["telemetry"]
-        if not telemetry == "":
-            b64 = (base64.b64encode(telemetry.encode()))
-            sha256 = hashlib.sha256(b64).hexdigest()
-            b64 = b64.decode()
-            now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
-            json = "{\"data\": {\"_raw\": \"%s\"},\"receivers\": {\"%s\": {\"time_created\": \"%s\",\"time_uploaded\": \"%s\"}}}" % (b64, "SAMPI", now, now)
-            #print(json)
-            #print(sha256)
-            headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
-            try:
-                r = requests.put("http://habitat.habhub.org/habitat/_design/payload_telemetry/_update/add_listener/"+sha256, headers=headers, data=json, timeout=2)
-            except:
-                sys.stdout.write("\rError while uploading. Internet OK?")
-            #print(r.status_code)
-            #print(r.content)
-            if telemetry == toSend["telemetry"]:
-                toSend["telemetry"] = ""
-        sleep(1)
+        try:
+            telemetry = toSend["telemetry"]
+            if not telemetry == "":
+                b64 = (base64.b64encode(telemetry.encode()))
+                sha256 = hashlib.sha256(b64).hexdigest()
+                b64 = b64.decode()
+                now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
+                json = "{\"data\": {\"_raw\": \"%s\"},\"receivers\": {\"%s\": {\"time_created\": \"%s\",\"time_uploaded\": \"%s\"}}}" % (b64, "SAMPI", now, now)
+                #print(json)
+                #print(sha256)
+                headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
+                try:
+                    r = requests.put("http://habitat.habhub.org/habitat/_design/payload_telemetry/_update/add_listener/"+sha256, headers=headers, data=json, timeout=2)
+                except:
+                    sys.stdout.write("\rError while uploading. Internet OK?")
+                #print(r.status_code)
+                #print(r.content)
+                if telemetry == toSend["telemetry"]:
+                    toSend["telemetry"] = ""
+        finally:
+            sleep(5)
 
 def addToImagePacket(part):
     global currentPacket
@@ -71,23 +73,25 @@ def addToImagePacket(part):
 def uploadSSDVPackets():
     global toSend
     while True:
-        sent = []
-        for packet in toSend["ssdv"]:
-            b64 = base64.b64encode(bytes(packet)).decode('utf-8')
-            headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
-            now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
-            upload = "{\"type\": \"packet\", \"packet\": \"%s\", \"encoding\": \"base64\", \"received\": \"%s\", \"receiver\": \"%s\"}" % (b64, now, "SAMPI")
-            try:
-                r = requests.post("http://ssdv.habhub.org/api/v0/packets", headers=headers, data=upload, timeout=2)
-            except:
-                sys.stdout.write("\rError while uploading. Internet OK?")
-            #print(r.content)
-            #print(r.status_code)
-            sent.append(packet)
-            sleep(0.5)
-        for packet in sent:
-            toSend["ssdv"].remove(packet)
-        sleep(0.1)
+        try:
+            sent = []
+            for packet in toSend["ssdv"]:
+                b64 = base64.b64encode(bytes(packet)).decode('utf-8')
+                headers = {"Accept" : "application/json", "Content-Type" : "application/json", "charsets" : "utf-8"}
+                now = strftime("%Y-%0m-%0dT%H:%M:%SZ")
+                upload = "{\"type\": \"packet\", \"packet\": \"%s\", \"encoding\": \"base64\", \"received\": \"%s\", \"receiver\": \"%s\"}" % (b64, now, "SAMPI")
+                try:
+                    r = requests.post("http://ssdv.habhub.org/api/v0/packets", headers=headers, data=upload, timeout=2)
+                except:
+                    sys.stdout.write("\rError while uploading. Internet OK?")
+                #print(r.content)
+                #print(r.status_code)
+                sent.append(packet)
+                sleep(0.5)
+            for packet in sent:
+                toSend["ssdv"].remove(packet)
+        finally:
+            sleep(0.1)
 
 currentPacket = ""      
 
