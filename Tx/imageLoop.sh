@@ -7,5 +7,5 @@ while true; do
     convert -resize 768x576 "/home/pi/images/$String" /home/pi/tmp.jpg
     ./ssdv -e -c REGGIE -i "$ID" /home/pi/tmp.jpg /home/pi/tmp.bin
     python increment.py
-    sleep 60s
+    sleep 20s
 done
