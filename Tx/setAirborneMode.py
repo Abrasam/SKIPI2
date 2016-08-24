@@ -1,12 +1,6 @@
 import serial,sys,struct
+from transmit import tx
 from timeout import *
-def send(s):
-    with serial.Serial("/dev/ttyAMA0", 75, serial.EIGHTBITS, serial.PARITY_NONE, serial.STOPBITS_TWO) as r:
-        r.flush()
-        for c in s:
-            r.write(c)
-            r.flush()
-        r.flush()
 try:
     with timeout(seconds=30):
         x = [0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x06,
@@ -31,10 +25,11 @@ try:
                     st += hex(int(v.encode('hex'), 16)) + " "
                 if "0xb5 0x62 0x5 0x1 0x2 0x0 0x6 0x24 0x32 0x5b" in st:
                     print("GPS Success")
-                    send("Success.")
                     success = True
+                    tx("$$SKIPI,Success/n")
                     break
             g.close()
 except:
     print("ERRORS!")
-    send("GPS Fail.")
+    print("$$SKIPI,Failure/n")
+

@@ -60,15 +60,9 @@ def uploadTelemetry():
             sleep(5)
 
 def addToImagePacket(part):
-    global currentPacket
-    if part[0] == "U":
-        currentPacket = part
-    else:
-        currentPacket += part
-    if len(currentPacket) >= 256:
-        #uploadSSDVPacket(currentPacket)
-        toSend["ssdv"].append(currentPacket)
-        currentPacket = ""
+    if len(part) == 255:
+        part = "U" + part
+        toSend["ssdv"].append(part)
 
 def uploadSSDVPackets():
     global toSend
@@ -92,8 +86,6 @@ def uploadSSDVPackets():
                 toSend["ssdv"].remove(packet)
         finally:
             sleep(0.1)
-
-currentPacket = ""      
 
 BOARD.setup()
 
