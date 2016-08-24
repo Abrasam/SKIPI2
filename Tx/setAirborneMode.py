@@ -1,5 +1,5 @@
 import serial,sys,struct
-from transmit import tx
+from Transmit import tx
 from timeout import *
 try:
     with timeout(seconds=30):
@@ -26,10 +26,10 @@ try:
                 if "0xb5 0x62 0x5 0x1 0x2 0x0 0x6 0x24 0x32 0x5b" in st:
                     print("GPS Success")
                     success = True
-                    tx("$$SKIPI,Success/n")
+                    tx(list(bytearray("$$SKIPI,Success\n")))
                     break
             g.close()
 except:
     print("ERRORS!")
-    print("$$SKIPI,Failure/n")
+    tx(list(bytearray("$$REGGIE,Failure\n")))
 
